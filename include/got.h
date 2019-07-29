@@ -6,18 +6,17 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <errno.h>
 
 unsigned int get_version();
-int write_cfg_new(int fd, char** filepaths, unsigned int version);
+int write_cfg(FILE * file, char** filepaths, unsigned int version);
 int got_add(int cfg_fd, char* path);
 int copy_file(FILE * src_file, FILE * dest_file);
 int copy_fd(int src_fd, int dest_fd);
 
-int gotcfg;
-
 unsigned int version;
 
-FILE * gotfile;
+FILE * gotcfg;
 
 char cwd[PATH_MAX];
 char cfg[PATH_MAX];
