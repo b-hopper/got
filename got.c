@@ -10,15 +10,6 @@ void got_error(char* errmsg)
   exit(-1);
 }
 
-int copy_file(FILE * src_file, FILE * dest_file)
-{
-  int c;
-  while ((c = fgetc(src_file)) != EOF)
-  {
-    fputc(c, dest_file);
-  }
-}
-
 int main(int argc, char* argv[])
 {
   errno = ENOENT;
@@ -156,11 +147,13 @@ int got_commit()
     strtok(line, "\n"); // Chomp \n
     strncpy(fullpath, vdir, PATH_MAX);
     strcat(fullpath, line);
+    printf("Path: %s\n", fullpath);
     if (access(line, F_OK) < 0) // File disappeared at some point between staging and committing?
     {
       got_error("failed to commit file(s)");
       exit(-1);
     }
+    // TODO: create folders
     FILE * oldfile = fopen(line, "r");
     FILE * newfile = fopen(fullpath, "w");
     copy_file(oldfile, newfile);
