@@ -10,6 +10,15 @@ void got_error(char* errmsg)
   exit(-1);
 }
 
+int copy_file(FILE * src_file, FILE * dest_file)
+{
+  int c;
+  while ((c = fgetc(src_file)) != EOF)
+  {
+    fputc(c, dest_file);
+  }
+}
+
 int main(int argc, char* argv[])
 {
   errno = ENOENT;
