@@ -19,22 +19,22 @@ int main(int argc, char* argv[])
     exit(0);
   }
 
+  //Check if .got directories exist, create if not.
   if (strcmp(argv[1], "init") == 0)
   { // got init
-
     if (access(".gotdir/.gotconfig", F_OK) != -1)
-    {
       got_error("got already initialized! terminating...");
-    }
 
-    int d = mkdir(".gotdir", MODE); 
+    int d = mkdir(".gotdir", MODE);  //Why catch in an int?
 
     gotcfg = fopen(".gotdir/.gotconfig", "w+");
-    if (gotcfg != NULL) write_cfg(gotcfg, NULL, 0);
+    if (gotcfg != NULL)
+      write_cfg(gotcfg, NULL, 0);
     else got_error("failed to init: ");
   }
 
-  if (gotcfg == NULL) gotcfg = fopen(".gotdir/.gotconfig", "r+");
+  if (gotcfg == NULL)
+    gotcfg = fopen(".gotdir/.gotconfig", "r+");
   if (gotcfg == NULL) // got is not set up in this project!
   {
     got_error("got not initialized! type \"got init\"\n");
@@ -42,6 +42,7 @@ int main(int argc, char* argv[])
   }
   version = get_version();
 
+  //Add file to be commited (not saved yet)
   if (strcmp(argv[1], "add") == 0)
   { // got add
     if (argv[2] == NULL)
@@ -52,12 +53,104 @@ int main(int argc, char* argv[])
     got_add(argv[2]);
   }
 
+  //Save files to a new version in .gotdir
   if (strcmp(argv[1], "commit") == 0)
   { // got commit
     got_commit();
   }
 
+  //at the moment: just print version to stdout
+  if (strcmp(argv[1], "status") == 0)
+  {
+    got_status();
+  }
+  
+  //like git reset, move back x versions
+  if (strcmp(argv[1], "reset") == 0)
+  {
+    if (argc < 3)
+      got_error("usage: \"got reset -x\"\n");
+    got_reset(argv[2]);
+  }
+
   fclose(gotcfg);
+}
+
+//--WARNING DESTRUCTIVE--
+//not checking cwd version is committed atm
+int got_reset(char* set_back)
+{
+  int x = atoi(set_back); //should be negative
+  int load_version = 0;
+  char* file_path = NULL;
+  char* ver_file = NULL;
+  char* cur_file = NULL;
+  DIR* directory = NULL;
+  struct dirent* cur = NULL; 
+  FILE* rd = NULL;
+  FILE* wr = NULL;
+
+  if ((x >= 0) || (x >= version))
+    return -1; //error, needs to be - to reach old version 
+  load_version = version - x;
+  sprintf(ver_file, "%d", load_version);
+
+  //Get file path to that version's dir
+  file_path = malloc(PATH_MAX * sizeof(char));
+  memset(file_path, 0, PATH_MAX);
+  strcat(file_path, ".gotdir/");
+  strcat(file_path, ver_file);
+ 
+  //open version dir
+  affirm_exists(file_path); 
+  directory = opendir(file_path);
+  affirm_permit(directory);
+   
+  cur_file = malloc(PATH_MAX * sizeof(char));
+  memset(cur_file, 0, PATH_MAX);
+
+  cur = readdir(directory);
+  while (cur != NULL)
+  {
+    if (cur->d_type == DT_REG)
+    {
+      strcpy(cur_file, file_path); 
+      strcat(cur_file, "/");
+      strcat(cur_file, cur->d_name);
+      rd = fopen(cur_file, "r");
+      wr = fopen(cur->d_name, "w+");
+      copy_file(rd, wr);
+      printf("Updated %s\n", cur->d_name);
+      fclose(rd);
+      fclose(wr); 
+    }
+    memset(cur_file, 0, PATH_MAX);
+    cur = readdir(directory);
+  }
+  
+  free(file_path);
+  free(cur_file);
+  return 1; 
+}
+
+static void
+affirm_permit(DIR* directory)
+{
+  if (directory == NULL)
+    got_error("Invalid permissions.\n");
+}
+
+static void
+affirm_exists(char* buf)
+{
+  if (access(buf, F_OK) == -1)
+    got_error("File/Directory does not exist.\n");
+}
+
+//Currently just prints out the most recent version.
+static void got_status()
+{
+  printf("Current version: %u\n", version);
 }
 
 int write_cfg(FILE * file, char** filepaths, unsigned int version)
@@ -113,6 +206,8 @@ int got_add(char* path)
   }
   char* line = malloc(PATH_MAX * sizeof(char));
   rewind(gotcfg);
+  //why a while loop if only one file name at a time accepted
+  //from main and strtok is setup for only one file name?
   while (fgets(line, PATH_MAX, gotcfg) != NULL)
   {
     strtok(line, "\n"); // Chomp \n
