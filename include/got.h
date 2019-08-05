@@ -9,19 +9,23 @@
 #include <errno.h>
 #include <dirent.h>
 
-int got_reset(char* set_back);
-static void affirm_permit(DIR* directory);
-static void affirm_exists(char* buf);
-static void got_status();
-int write_cfg(FILE * file, char** filepaths, unsigned int version);
-int copy_file(FILE * src_file, FILE * dest_file);
-unsigned int get_version();
-int got_add(char* path);
-int got_commit();
+// new functions (bradDev)
+int got_reset(char *set_back);
+void affirm_permit(DIR *directory);
+void affirm_exist(char *buf);
+void got_status(void);
+// original functions (got-master)
+unsigned int get_version(void);
+void got_add(char* path);
+void got_commit(void);
+int got_init(void);
+void write_cfg(char** filepaths, unsigned int version);
+int read_line(int fd, char *line);
+void copy_file(int src_file, int dest_file);
 
 unsigned int version;
 
-FILE * gotcfg;
+int gotcfg = -1;
 
 char** staged_filepaths;
 
