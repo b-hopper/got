@@ -306,7 +306,7 @@ int got_reset(char *set_back)
   struct dirent *cur;
   int rd,wr;
 
-  if (x < 0 || x == version)
+  if (x < 0 || x > version)
     return -1;
   // load_version obsolete
   // ver_file will be set_back
