@@ -333,7 +333,7 @@ int got_reset(char *set_back)
       strcat(cur_file, cur->d_name);
 
       rd = open(cur_file, O_RDONLY);
-      wr = open(cur->d_name, O_WRONLY);
+      wr = open(cur->d_name, O_WRONLY | O_TRUNC);
 
       copy_file(rd, wr);
       write(STDOUT_FILENO, "Updated ", 8);
