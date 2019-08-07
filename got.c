@@ -1,4 +1,4 @@
-#include "got.h"
+#include "include/got.h"
 
 void got_error(char *errmsg)
 {
