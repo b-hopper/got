@@ -17,7 +17,6 @@ int main(int argc, char *argv[])
   errno = ENOENT;
   if (argc == 1)
     got_error("\nUsage:\n\tgot init\n\tmore later...\n");
-    // the exit that was here didn't need to be here
 
   if (strcmp(argv[1], "init") == 0) {
     int init = got_init();
@@ -29,17 +28,14 @@ int main(int argc, char *argv[])
 
   if (gotcfg == -1)
     gotcfg = open(".gotdir/.gotconfig", O_RDWR);
-
-  if (gotcfg == -1) // got is not set up in this projekt
+  if (gotcfg == -1) // got is not set up in this project
     got_error("got not initialized! type \"got init\"\n");
-    // the exit that was here didn't need to be here
 
   version = get_version();
 
   if (strcmp(argv[1], "add") == 0) {
     if (argc < 3)
       got_error("usage: \"got add <filename>\"\n");
-      // the exit that was here didn't need to be here
     got_add(argv[2]);
   }
 
@@ -143,7 +139,6 @@ void got_add(char* path)
 {
   if (access(path, F_OK) < 0)
     got_error("cannot add file: ");
-    // the exit that was here didn't need to be here
 
   char *line = malloc(PATH_MAX * sizeof(char));
   lseek(gotcfg, 0, SEEK_SET);
@@ -151,7 +146,6 @@ void got_add(char* path)
     strtok(line, "\n"); // chomp \n
     if (strcmp(line, path) == 0)
       got_error("file already staged for commit");
-      // the exit that was here didn't need to be here
   }
 
   write(gotcfg, path, strlen(path));
@@ -167,36 +161,23 @@ void got_add(char* path)
 
 void got_commit(void)
 {
-  int count;
-  char *line = malloc(PATH_MAX * sizeof(char));
-
-  lseek(gotcfg, 0, SEEK_CUR);
-  read_line(gotcfg, line);
-
+  int fcount;
+  int readfds[MAX_COMMITS];
+  int writefds[MAX_COMMITS];
   char vdir[13];
+
   sprintf(vdir, ".gotdir/%u/", version + 1);
   mkdir(vdir, MODE);
-
+  
   char *fullpath = malloc(PATH_MAX * sizeof(char));
+  strncpy(fullpath, vdir, PATH_MAX);
+  write(STDOUT_FILENO, "Path: ", 6);
+  write(STDOUT_FILENO, fullpath, strlen(fullpath));
+  write(STDOUT_FILENO, "\n", 1);
 
+  fcount = open_fds(&readfds, &writefds, fullpath);
 
-  while(read_line(gotcfg, line) != -1) {
-    strtok(line, "\n"); // chomp \n
-    strncpy(fullpath, vdir, PATH_MAX);
-    strcat(fullpath, line);
-    write(STDOUT_FILENO, "Path: ", 6);
-    write(STDOUT_FILENO, fullpath, strlen(fullpath));
-    write(STDOUT_FILENO, "\n", 1);
-
-    if (access(line, F_OK) < 0) // file disappeared at some point between staging and committing?
-      got_error("failed to commit file(s)");
-      // the exit that was here didn't need to be here
-
-    // TODO: create folder
-    int oldfile = open(line, O_RDONLY);
-    int newfile = open(fullpath, O_WRONLY | O_CREAT, 0600);
-    copy_file(oldfile, newfile);
-    count++;
+  copy_file(oldfile, newfile);
 
     close(oldfile);
     close(newfile);
@@ -208,6 +189,36 @@ void got_commit(void)
   write_cfg(NULL, version);
   free(fullpath);
   free(line);
+}
+
+//Returns num of files to be read/written to new ver
+// TODO: make this work with folders / able to create them
+int open_fds(int (*readfds)[], 
+             int (*writefds)[], char *path)
+{
+  char* line = malloc(PATH_MAX * sizeof(char));
+  char* fullpath = malloc(PATH_MAX * sizeof(char));
+  int i = 0;
+
+  lseek(gotcfg, 0, SEEK_CUR);
+  read_line(gotcfg, line);
+
+  while (read_line(gotcfg, line) != -1)
+  {
+    if (i > MAX_COMMITS)
+      got_error("Maximum number of files to commit reached.\n");
+    strtok(line, "\n"); // chomp \n
+    strncpy(fullpath, path, PATH_MAX);
+    strcat(fullpath, line);
+    affirm_exist(line);
+
+    (*readfds)[i] = open(line, O_RDONLY);
+    (*writefds)[i] = open(fullpath, O_WRONLY | O_CREAT, 0600);
+    ++i;    
+  }
+  free(line);
+  free(fullpath);
+  return i; 
 }
 
 // ============================================
@@ -224,6 +235,15 @@ void copy_file(int src_file, int dest_file)
     write(dest_file, &c, 1);
   }
 }
+/*
+  Plan to change got_commit and copy_file:
+  I: Open fd's for each read and write file
+  II: Load up *aiocb[] for reads and for writes separately
+  III: Queue reads and let them finish in any order
+  IV: For now maybe just have it wait to finish them (not really async.)
+  V: repeat for writes.. 
+
+*/
 
 // ============================================
 // read_line(int fd, char line[])
@@ -308,8 +328,6 @@ int got_reset(char *set_back)
 
   if (x < 0 || x > version)
     return -1;
-  // load_version obsolete
-  // ver_file will be set_back
 
   // get file path to that version's dir
   file_path = malloc(PATH_MAX * sizeof(char));

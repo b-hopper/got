@@ -9,6 +9,13 @@
 #include <errno.h>
 #include <dirent.h>
 
+#define MAX_COMMITS 5
+
+//Note: all these change comments and stuff should
+//      be out by demo time in master branch at least.
+
+// asyncDev
+int open_fds(int (*rfds)[], int (*wfds)[], char* path);
 // new functions (bradDev)
 int got_reset(char *set_back);
 void affirm_permit(DIR *directory);
