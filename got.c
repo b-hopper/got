@@ -177,24 +177,21 @@ void got_commit(void)
 
   fcount = open_fds(&readfds, &writefds, fullpath);
 
-  copy_file(oldfile, newfile);
+  copy_files(&readfds, &writefds, fcount);
 
-    close(oldfile);
-    close(newfile);
-  }
+  close_fds(&readfds, fcount);
+  close_fds(&writefds, fcount);
 
   version++;
   close(gotcfg);
   gotcfg = open(".gotdir/.gotconfig", O_RDWR | O_TRUNC);
   write_cfg(NULL, version);
   free(fullpath);
-  free(line);
 }
 
 //Returns num of files to be read/written to new ver
 // TODO: make this work with folders / able to create them
-int open_fds(int (*readfds)[], 
-             int (*writefds)[], char *path)
+int open_fds(int (*readfds)[], int (*writefds)[], char *path)
 {
   char* line = malloc(PATH_MAX * sizeof(char));
   char* fullpath = malloc(PATH_MAX * sizeof(char));
@@ -221,6 +218,74 @@ int open_fds(int (*readfds)[],
   return i; 
 }
 
+//close all open fds in an array of fds
+void close_fds(int (*fds)[], int count)
+{
+  for (int i = 0; i < count; ++i)
+    close((*fds)[i]);
+}
+
+//Sig handler for SIGUSR1, when sig recieved informs
+//copy_files that file writing can happen.
+//May be useful later on if anything ever wants to be done
+//while files are still being read, before writing occurs.
+void async_done(int signo)
+{
+  if (signo == SIGUSR1)
+    ASYNC_DONE = 1;
+}
+
+//Using async w/ lio_listio using NOWAIT more because it is nice
+//practice, less because it is very helpful in this situation.
+void copy_files(int (*readfds)[], int (*writefds)[], int count)
+{
+  struct sigaction sa;
+  struct sigevent se;
+  struct aiocb aio_op[count];
+
+  //SIGUSR1 sent when reads complete
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+  sa.sa_handler = async_done;
+  if (sigaction(SIGUSR1, &sa, NULL) < 0)
+    got_error("Failed to establish signal handler.\n");
+  
+  //se establishes SIGUSR1 as the sig to send when lio_listio completes
+  se.sigev_notify = SIGEV_SIGNAL;
+  se.sigev_signo = SIGUSR1; 
+
+  //Setup aiocb array for reads
+  for (int i = 0; i < count; ++i)
+  {
+    aio_op[i].aio_fildes = (*readfds)[i];
+    aio_op[i].aio_buf = malloc(BSZ * sizeof(char)); 
+    aio_op[i].aio_nbytes = BSZ;
+    aio_op[i].aio_lio_opcode = LIO_READ;
+  }
+
+  //Carrys out all reads, in any order.
+  if (lio_listio(LIO_NOWAIT, &aio_op, count, &se) < 0)
+    got_error("Error while queueing files for reading.\n");
+
+  while (ASYNC_DONE < 0)
+    pause(); // Everytime a signal is caught, this will check
+             // if writes are ready (SIGUSR1 was sent).
+             // So, reads: "Pause until we can write."
+
+  //Setup aiocb array for writes
+  for (int i = 0; i < count; ++i)
+  {
+    aio_op[i].aio_fildes = (*writefds)[i]; 
+    aio_op[i].aio_nbytes = BSZ;
+    aio_op[i].aio_lio_opcode = LIO_WRITE;
+  }
+  
+  if (lio_listio(LIO_NOWAIT, &aio_op, count, &se) < 0)
+    got_error("Forgot to write files.\n");
+  //For now not waiting for the writes to finish here
+  //cause I think that they will always be done by program completion... 
+}
+
 // ============================================
 // copy_file(int src_file, int dest_file)
 // Arguments: the source file
@@ -235,15 +300,6 @@ void copy_file(int src_file, int dest_file)
     write(dest_file, &c, 1);
   }
 }
-/*
-  Plan to change got_commit and copy_file:
-  I: Open fd's for each read and write file
-  II: Load up *aiocb[] for reads and for writes separately
-  III: Queue reads and let them finish in any order
-  IV: For now maybe just have it wait to finish them (not really async.)
-  V: repeat for writes.. 
-
-*/
 
 // ============================================
 // read_line(int fd, char line[])
