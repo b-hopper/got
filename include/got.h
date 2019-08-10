@@ -18,10 +18,10 @@
 //      be out by demo time in master branch at least.
 
 // asyncDev
-int open_fds(int (*rfds)[], int (*wfds)[], char* path);
-void close_fds(int (*fds)[], int count);
+int open_fds(int rfds[], int wfds[], char* path);
+void close_fds(int fds[], int count);
 void async_done(int signo);
-void copy_files(int (*rfds)[], int (*wfds)[], int count);
+void copy_files(int rfds[], int wfds[], int count);
 // new functions (bradDev)
 int got_reset(char *set_back);
 void affirm_permit(DIR *directory);

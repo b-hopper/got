@@ -175,12 +175,11 @@ void got_commit(void)
   write(STDOUT_FILENO, fullpath, strlen(fullpath));
   write(STDOUT_FILENO, "\n", 1);
 
-  fcount = open_fds(&readfds, &writefds, fullpath);
+  fcount = open_fds(readfds, writefds, fullpath);
+  copy_files(readfds, writefds, fcount);
 
-  copy_files(&readfds, &writefds, fcount);
-
-  close_fds(&readfds, fcount);
-  close_fds(&writefds, fcount);
+  close_fds(readfds, fcount);
+  close_fds(writefds, fcount);
 
   version++;
   close(gotcfg);
@@ -191,7 +190,7 @@ void got_commit(void)
 
 //Returns num of files to be read/written to new ver
 // TODO: make this work with folders / able to create them
-int open_fds(int (*readfds)[], int (*writefds)[], char *path)
+int open_fds(int readfds[], int writefds[], char *path)
 {
   char* line = malloc(PATH_MAX * sizeof(char));
   char* fullpath = malloc(PATH_MAX * sizeof(char));
@@ -209,8 +208,8 @@ int open_fds(int (*readfds)[], int (*writefds)[], char *path)
     strcat(fullpath, line);
     affirm_exist(line);
 
-    (*readfds)[i] = open(line, O_RDONLY);
-    (*writefds)[i] = open(fullpath, O_WRONLY | O_CREAT, 0600);
+    readfds[i] = open(line, O_RDONLY);
+    writefds[i] = open(fullpath, O_WRONLY | O_CREAT, 0600);
     ++i;    
   }
   free(line);
@@ -219,10 +218,10 @@ int open_fds(int (*readfds)[], int (*writefds)[], char *path)
 }
 
 //close all open fds in an array of fds
-void close_fds(int (*fds)[], int count)
+void close_fds(int fds[], int count)
 {
   for (int i = 0; i < count; ++i)
-    close((*fds)[i]);
+    close(fds[i]);
 }
 
 //Sig handler for SIGUSR1, when sig recieved informs
@@ -237,11 +236,11 @@ void async_done(int signo)
 
 //Using async w/ lio_listio using NOWAIT more because it is nice
 //practice, less because it is very helpful in this situation.
-void copy_files(int (*readfds)[], int (*writefds)[], int count)
+void copy_files(int readfds[], int writefds[], int count)
 {
-  struct sigaction sa;
+  struct sigaction sa; // Seg fault here??
   struct sigevent se;
-  struct aiocb aio_op[count];
+  struct aiocb * aio_op[count];  // Rather than using aiocb[], just use an iterable pointer
 
   //SIGUSR1 sent when reads complete
   sigemptyset(&sa.sa_mask);
@@ -254,36 +253,43 @@ void copy_files(int (*readfds)[], int (*writefds)[], int count)
   se.sigev_notify = SIGEV_SIGNAL;
   se.sigev_signo = SIGUSR1; 
 
+  int sz = 0;
   //Setup aiocb array for reads
   for (int i = 0; i < count; ++i)
   {
-    aio_op[i].aio_fildes = (*readfds)[i];
-    aio_op[i].aio_buf = malloc(BSZ * sizeof(char)); 
-    aio_op[i].aio_nbytes = BSZ;
-    aio_op[i].aio_lio_opcode = LIO_READ;
+    aio_op[i] = malloc(sizeof(struct aiocb));
+    memset(aio_op[i], 0, sizeof(struct aiocb));
+    aio_op[i]->aio_fildes = readfds[i];
+
+    sz = lseek(readfds[i], 0, SEEK_END); // Get size of file
+    lseek(readfds[i], 0, SEEK_SET); // Set offset back to start of file
+
+    aio_op[i]->aio_buf = malloc(sz * sizeof(char));
+    aio_op[i]->aio_nbytes = sz;
+    aio_op[i]->aio_lio_opcode = LIO_READ;
   }
 
+  
   //Carrys out all reads, in any order.
-  if (lio_listio(LIO_NOWAIT, &aio_op, count, &se) < 0)
+  if (lio_listio(LIO_NOWAIT, aio_op, count, &se) < 0)
     got_error("Error while queueing files for reading.\n");
 
-  while (ASYNC_DONE < 0)
+  while (ASYNC_DONE < 0) 
     pause(); // Everytime a signal is caught, this will check
              // if writes are ready (SIGUSR1 was sent).
              // So, reads: "Pause until we can write."
-
   //Setup aiocb array for writes
+
   for (int i = 0; i < count; ++i)
-  {
-    aio_op[i].aio_fildes = (*writefds)[i]; 
-    aio_op[i].aio_nbytes = BSZ;
-    aio_op[i].aio_lio_opcode = LIO_WRITE;
+  { // No need to reset buffer, we're not changing the aiocb so now 
+    // it has read into the buffer and we're writing that same buffer to a new file
+    printf("write\n");
+    aio_op[i]->aio_fildes = writefds[i]; 
+    aio_op[i]->aio_lio_opcode = LIO_WRITE;
   }
+  if (lio_listio(LIO_WAIT, aio_op, count, &se) != 0) // Seems to have some issues writing  
+    got_error("Forgot to write files.\n");           // in LIO_NOWAIT, so wait on this one
   
-  if (lio_listio(LIO_NOWAIT, &aio_op, count, &se) < 0)
-    got_error("Forgot to write files.\n");
-  //For now not waiting for the writes to finish here
-  //cause I think that they will always be done by program completion... 
 }
 
 // ============================================
