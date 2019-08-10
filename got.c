@@ -283,7 +283,6 @@ void copy_files(int readfds[], int writefds[], int count)
   for (int i = 0; i < count; ++i)
   { // No need to reset buffer, we're not changing the aiocb so now 
     // it has read into the buffer and we're writing that same buffer to a new file
-    printf("write\n");
     aio_op[i]->aio_fildes = writefds[i]; 
     aio_op[i]->aio_lio_opcode = LIO_WRITE;
   }
