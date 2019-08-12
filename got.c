@@ -366,6 +366,18 @@ void got_status(void)
 
   write(STDOUT_FILENO, ver, strlen(ver));
   write(STDOUT_FILENO, "\n", 1);
+  write(STDOUT_FILENO, "Files staged for commit:\n", 25);
+
+  char *line = malloc(PATH_MAX * sizeof(char));
+  lseek(gotcfg, 0, SEEK_CUR);
+  read_line(gotcfg, line); // Skip version line
+
+  while(read_line(gotcfg, line) != -1) {
+    strtok(line, "\n"); // chomp \n
+    write(STDOUT_FILENO, "   - ", 5);
+    write(STDOUT_FILENO, line, strlen(line));
+    write(STDOUT_FILENO, "\n", 1);
+  }
 }
 
 // ============================================
