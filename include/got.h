@@ -14,21 +14,17 @@
 #define MAX_COMMITS 5
 #define BSZ 4096 
 
-//Note: all these change comments and stuff should
-//      be out by demo time in master branch at least.
-
-// asyncDev
 int open_fds(int rfds[], int wfds[], char* path);
 void close_fds(int fds[], int count);
 void async_done(int signo);
 void copy_files(int rfds[], int wfds[], int count);
-// new functions (bradDev)
+
 int got_reset(char *set_back);
 void affirm_permit(DIR *directory);
 void affirm_exist(char *buf);
 void got_status(void);
-// original functions (got-master)
 unsigned int get_version(void);
+
 void got_add(char* path);
 void got_commit(void);
 int got_init(void);

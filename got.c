@@ -193,7 +193,6 @@ void got_commit(void)
 }
 
 //Returns num of files to be read/written to new ver
-// TODO: make this work with folders / able to create them
 int open_fds(int readfds[], int writefds[], char *path)
 {
   char* line = malloc(PATH_MAX * sizeof(char));
@@ -242,9 +241,9 @@ void async_done(int signo)
 //practice, less because it is very helpful in this situation.
 void copy_files(int readfds[], int writefds[], int count)
 {
-  struct sigaction sa; // Seg fault here??
+  struct sigaction sa;
   struct sigevent se;
-  struct aiocb * aio_op[count];  // Rather than using aiocb[], just use an iterable pointer
+  struct aiocb * aio_op[count]; 
 
   //SIGUSR1 sent when reads complete
   sigemptyset(&sa.sa_mask);
@@ -285,13 +284,12 @@ void copy_files(int readfds[], int writefds[], int count)
   //Setup aiocb array for writes
 
   for (int i = 0; i < count; ++i)
-  { // No need to reset buffer, we're not changing the aiocb so now 
-    // it has read into the buffer and we're writing that same buffer to a new file
+  { 
     aio_op[i]->aio_fildes = writefds[i]; 
     aio_op[i]->aio_lio_opcode = LIO_WRITE;
   }
-  if (lio_listio(LIO_WAIT, aio_op, count, &se) != 0) // Seems to have some issues writing  
-    got_error("Forgot to write files.\n");           // in LIO_NOWAIT, so wait on this one
+  if (lio_listio(LIO_WAIT, aio_op, count, &se) != 0)
+    got_error("Forgot to write files.\n");
   
 }
 
