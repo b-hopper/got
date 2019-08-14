@@ -1,5 +1,9 @@
 #include "include/got.h"
 
+// Got
+// Authors: Brad H, Bradley T, Marie E
+// Must be compiled with '-lrt' flag
+
 void got_error(char *errmsg)
 {
   write(2, "got failed! error: ", 19);
