@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 {
   errno = ENOENT;
   if (argc == 1)
-    got_error("\nUsage:\n\tgot init\n\tmore later...\n");
+    got_error("\nUsage:\n\tgot init\t\t:: initialize a got project in the current directory\n\tgot add <filename>\t:: add a file to be committed\n\tgot status\t\t:: view current version and staged files\n\tgot commit\t\t:: commit files to version\n\tgot reset <version #>\t:: reset project to specified version [WARNING: DESTRUCTIVE, COMMIT BEFORE RESETTING]\n");
 
   if (strcmp(argv[1], "init") == 0) {
     int init = got_init();
@@ -286,8 +286,8 @@ void copy_files(int readfds[], int writefds[], int count)
     aio_op[i]->aio_fildes = writefds[i]; 
     aio_op[i]->aio_lio_opcode = LIO_WRITE;
   }
-  if (lio_listio(LIO_WAIT, aio_op, count, &se) != 0) // Seems to have some issues writing  
-    got_error("Forgot to write files.\n");           // in LIO_NOWAIT, so wait on this one
+  if (lio_listio(LIO_NOWAIT, aio_op, count, &se) < 0)
+    got_error("Forgot to write files.\n");
   
 }
 
@@ -412,7 +412,7 @@ int got_reset(char *set_back)
       strcat(cur_file, cur->d_name);
 
       rd = open(cur_file, O_RDONLY);
-      wr = open(cur->d_name, O_WRONLY | O_TRUNC);
+      wr = open(cur->d_name, O_WRONLY | O_CREAT);
 
       copy_file(rd, wr);
       write(STDOUT_FILENO, "Updated ", 8);
