@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 {
   errno = ENOENT;
   if (argc == 1)
-    got_error("\nUsage:\n\tgot init\n\tmore later...\n");
+    got_error("\nUsage:\n\tgot init\n\tgot add <filename>\n\tgot commit\n\tgot status\n\tgot reset <version>\n");
 
   if (strcmp(argv[1], "init") == 0) {
     int init = got_init();
