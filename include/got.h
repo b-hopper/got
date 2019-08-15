@@ -1,3 +1,10 @@
+// Got Version Control System
+// Brad Hopper, Bradley Thompson, Marie Escapita
+// CS410 Summer 2019
+
+/*  This program is released under the "MIT Lecense".
+    Please refer to the file **LICENSE** for more information. */
+
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>

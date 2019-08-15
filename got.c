@@ -1,8 +1,15 @@
+// Got Version Control System
+// Brad Hopper, Bradley Thompson, Marie Escapita
+// CS410 Summer 2019
+
+/*  This program is released under the "MIT Lecense".
+    Please refer to the file **LICENSE** for more information. */
+
 #include "include/got.h"
 
-// Got
-// Authors: Brad H, Bradley T, Marie E
-// Must be compiled with '-lrt' flag
+// Please read README.md for install instructions, how to use this
+// program, contributors and more.
+
 
 void got_error(char *errmsg)
 {
